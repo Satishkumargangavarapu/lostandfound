@@ -52,9 +52,9 @@ def ask(prompt, required=True, max_len=80):  # keep asking until the text is val
         print("  ! This field is required.")
 
 
-def ask_kind():  # returns 'lost' or 'found'
+def ask_kind(prompt="Did you (L)ose or (F)ind an item? "):  # returns 'lost' or 'found'
     while True:
-        choice = input("Did you (L)ose or (F)ind an item? ").strip().lower()
+        choice = input(prompt).strip().lower()
         if choice in ("l", "lost", "f", "found"):
             return "lost" if choice[0] == "l" else "found"
         print("  ! Please type L or F.")
@@ -132,11 +132,29 @@ def admin_view():  # option 2: only the admin can see ALL items (lost + found)
     show(load_items("lost") + load_items("found"))
 
 
-def search_items():
-    word = ask("Search word (found items only): ").lower()
-    matches = [i for i in load_items("found")  # only the found_items.csv file
-               if word in f"{i['title']} {i['description']} {i['location']}".lower()]
+def search_items():  # option 3: search FOUND items that are still waiting for their owner
+    words = ask("Search word(s) (found items only): ").lower().split()
+    matches = []
+    for i in load_items("found"):  # only the found_items.csv file
+        if i["resolved"] == "1":  # already returned to the owner, so skip it
+            continue
+        text = f"{i['title']} {i['description']} {i['location']}".lower()
+        if all(w in text for w in words):  # every typed word must appear somewhere
+            matches.append(i)
+    if not matches:
+        print(f"\n  No open found items match '{' '.join(words)}'.")
+        return
     show(matches)
+
+
+def filter_items():  # option 4: show only LOST or only FOUND items
+    kind = ask_kind("Show (L)ost or (F)ound items? ")
+    items = load_items(kind)
+    if not items:
+        print(f"\n  No {kind} items have been posted yet.")
+        return
+    print(f"\n===== {kind.upper()} ITEMS =====")
+    show(items)
 
 
 def resolve_item():
@@ -172,7 +190,7 @@ def main():
         "1": post_item,
         "2": admin_view,
         "3": search_items,
-        "4": lambda: show(load_items(ask_kind())),
+        "4": filter_items,
         "5": resolve_item,
         "6": delete_item,
     }
